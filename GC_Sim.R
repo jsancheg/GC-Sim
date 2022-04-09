@@ -1,11 +1,18 @@
 library(stats4)
 library(methods)
-# creating the class signal
+# creating the class signal.
 # 
 rm(list = ls())
+# Create a class with three fields.
+# peak: A vector that contains the position of peaks in the range of spectra.
+# variance: A vector that contains the variances for different peaks.
+# intensity: A vector that contains the intensity of the peaks.
+# Window: A vector that contains the number of retention time to be affected
+#         around the main peak.
+# lowerlimit: A variable that set the minimum value for retention time.
+# upperlimit: A variable that set the maximum value for retention time.
 
-
-Peaks <- setRefClass("Peaks",fields = list(peak = "numeric",
+gc <- setRefClass("gc",fields = list(peak = "numeric",
                                    variance = "numeric",
                                    intensity = "numeric",
                                    window = "numeric",
@@ -25,7 +32,8 @@ Peaks <- setRefClass("Peaks",fields = list(peak = "numeric",
                           x <- rep(0,length(seq(lowerlimit,upperlimit,1)))
                           
                           # for each peak identify the window to be changed
-                          sapply(1:np, function(j){
+                          for(j in 1:np)
+                            {
                             if(peak[j]-window[j]>0)
                             {
                               ini<- peak[j]-window[j]
@@ -33,77 +41,54 @@ Peaks <- setRefClass("Peaks",fields = list(peak = "numeric",
                               # obtain position to be changed
                               positionToChange <- seq(ini,fin,1)
                               
-                              sapply(1:length(positionToChange),function(pos)
+                            x[ini:fin]<-x[ini:fin] + sapply(positionToChange,function(pos)
                               {
                                 # generate a value from normal dist. with mean equal to
                                 # intensity
-                                x[pos]<-x[pos]+abs(rnorm(1,intensity[j],sqrt(variance[j])))
+                                abs(rnorm(1,intensity[j],sqrt(variance[j])))/exp(abs(peak[j]-pos)/2)
                                 # exponential decay when the retention time differ from 
                                 # the position of the peak
-                                x[pos]<-x[pos]/exp(abs(peak[j]-pos)/2)
+                                
                               })                  
                               
                             }
-                          })
+                          }
                         print = x 
+                       },
+                       range = function()
+                       {
+                         range = seq(lowerlimit,upperlimit,1)
                        }
                      ))
 
 
 
-peakset<-Peaks(peak =c(500,1100,1400,1750,1900,2300,2500),
+set.seed(1)
+v1 <- c(50,110,140,175,190,230,250)
+u <- round(rnorm(7,5,2),0)
+u
+v2 <- v1 + u
+v2
+
+gc1<-gc(peak =v1,
                variance =c(2,2,1,1,1,1,1),
                intensity = c(10,35,55,35,180,700,400),
                window = c(3,3,3,5,5,10,10),
                lowerlimit = 0,
-               upperlimit = 5000)
+               upperlimit = 500)
 
+# signal shifted by adding a random normal vector to the peak vectors
+gc2<-gc(peak =v2,
+                variance =c(2,2,1,1,1,1,1),
+                intensity = c(10,35,55,35,180,700,400),
+                window = c(3,3,3,5,5,10,10),
+                lowerlimit = 0,
+                upperlimit = 500)
 
-GC1<- peakset$print()
-plot(GC1,type = "l")
+B1 <- gc1$print()
+# signal shifted
+T1 <- gc2$print()
 
-x1 <- rep(0,5000)
-for(j in 1:7 )
-{
-  if(peakset$peak[j]-peakset$window[j]>0)
-  {
-    ini<- peakset$peak[j]-peakset$window[j]
-    fin<- peakset$peak[j]+peakset$window[j]
-    # obtain position to be changed
-    positionToChange <- seq(ini,fin,1)
-    cat("\n",positionToChange,"\n")
-    f1 <- abs(peakset$peak[j]-positionToChange)
-    cat("\n",f1,"\n")
-    flag <- 1
-    
-    x1[ini:fin]<-x1[ini:fin] + sapply(positionToChange,function(pos)
-    {
-      # generate a value from normal dist. with mean equal to
-      # intensity
-      aux1 <- abs(rnorm(1,peakset$intensity[j],sqrt(peakset$variance[j]) ) )/exp( abs(pos-peakset$peak[j]))
-    })                  
-  }
-}
+plot(gc1$range(), B1, type = "l", col = "blue")
+lines(gc1$range(),T1, col = "green")
 
-x1
-summary(x1)
-plot(x1,type ="l")
-
-setClass("Peaks",
-         slots = list(peak = "numeric", 
-                      variance = "numeric", 
-                      intensity = "numeric",
-                      lowerlimit = "numeric",
-                      upperlimit = "numeric"))
-
-
-
-
-
-peakset<-Peaks(peak =c(500,1100,1400,1750,1900,2300,2500),
-               variance =c(2,2,1,1,1,1,1),
-               intensity = c(1,0.25,0.25,0.25,180,700,400),
-               lowerlimit = 0,
-               upperlimit = 5000)
-
-  
