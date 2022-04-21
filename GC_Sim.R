@@ -92,3 +92,63 @@ T1 <- gc2$print()
 plot(gc1$range(), B1, type = "l", col = "blue")
 lines(gc1$range(),T1, col = "green")
 
+# benefit function 
+f <- function(xi,xi1)
+{
+  
+}
+
+align <- function(P,Target,m,t)
+{
+  # F1: matrix containing the cumulated benefit function
+  
+  # Pre-aligming length of chromatogram
+  Lp<- max(P$x)-min(P$x)
+  
+  # Post-aligning length of chromatogram and length of 
+  # target chromatogram
+  Lt <- max(Target$x)-min(Target$x)
+  
+  # Calculate number of sections for P
+  N <- round(Lp/m)
+  
+  # calculate difference in mean section length between P and T
+  d <- round(Lt/N) - m
+  
+  F1 <- matrix(0.0, nrow = (N+1), ncol = (Lt+1))
+  U <- matrix(0.0, nrow = (N+1), ncol = (Lt+1))
+  
+  for (i in 0:N)
+  {
+    for(x in 0:Lt)
+    {
+      F1[i,x] <- -Inf  
+    }
+  }
+  
+  F1[N,0] = 0
+  
+  for (i in (N-1): 0)
+  {
+    xstart <- max(i*(m+d-t),Lt-(N-i)*(m+d+t))
+    xend <- min(i*(m+d + t),Lt-(N-i)*(m+d-t))
+    for (x in xstart:xend)
+    {
+      for (u in (d-t):(d+t))
+      {
+        fsum <- F1[i+1,x+m+u] + f(x,x+m+u)
+        if (fsum > F1[i,x]) then
+        F1[i,x] <- fsum
+        U[i,x] <- u
+      }
+    }
+  }
+  
+  x(0) = 0
+  for(i in 0:N-1)
+  {
+    u[i] <- U[i,x[i]]
+    x[i+1] <- x[i]+m+u(i)
+  }
+  return(x = x, u=u,F1=F1,U=U)
+}
