@@ -92,14 +92,38 @@ T1 <- gc2$print()
 plot(gc1$range(), B1, type = "l", col = "blue")
 lines(gc1$range(),T1, col = "green")
 
-# benefit function 
-f <- function(xi,xi1)
+
+Pprime <- function(P,xi,xi1)
 {
+  
+  
+}
+
+# benefit function 
+f <- function(P,T1,xi,xi1)
+{
+  
+  # Use the warping points to find the unwarped points and obtain pj's
+  # calculate the Pprime using pj's in order to compare with the target
+  # Calculate correlation between Pprime and T in a segment.
+  ini<- which(T$x == xi)
+  fin <-which(T$x == xi1)
+  
+  # Transform P into Pw(Pprime)
+  
+  # if Pw and T1 are the same length
+  a <- T1$f[ini:fin]
+  b <- Pw$f[ini:fin]
+  output <- cov(a,b)
   
 }
 
 align <- function(P,Target,m,t)
 {
+  # P:  class GC signal that contains the retention time and intensity
+  # Target: class Gc signal that contains the target retention and intensity
+  # m:      Number of segments
+  # t:       
   # F1: matrix containing the cumulated benefit function
   
   # Pre-aligming length of chromatogram
@@ -110,10 +134,10 @@ align <- function(P,Target,m,t)
   Lt <- max(Target$x)-min(Target$x)
   
   # Calculate number of sections for P
-  N <- round(Lp/m)
+  N <- floor(Lp/m)
   
   # calculate difference in mean section length between P and T
-  d <- round(Lt/N) - m
+  d <- floor(Lt/N) - m
   
   F1 <- matrix(0.0, nrow = (N+1), ncol = (Lt+1))
   U <- matrix(0.0, nrow = (N+1), ncol = (Lt+1))
