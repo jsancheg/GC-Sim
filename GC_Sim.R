@@ -93,8 +93,16 @@ plot(gc1$range(), B1, type = "l", col = "blue")
 lines(gc1$range(),T1, col = "green")
 
 
-Pprime <- function(P,xi,xi1)
+Pprime <- function(P,T1,xi,xi1)
 {
+  nT <- length(T1$x[xi:xi1])
+  pj <- rep(0,nT)
+  pj[1] <- T1$x[xi]
+  
+  
+  fpj<- rep(0,nT)
+  
+  
   
   
 }
@@ -102,19 +110,31 @@ Pprime <- function(P,xi,xi1)
 # benefit function 
 f <- function(P,T1,xi,xi1)
 {
+  # xi : warping start position
+  # xi1 : warping end position
+  # xsw : start warping point
+  # xew : end warping point
+   
+  temp <- list()
+  nTi <- length(T1$x[xi:xi1])
+  PPf <- list(x = rep(0.0,nTi), f = rep(0.0,nTi) )
   
   # Use the warping points to find the unwarped points and obtain pj's
   # calculate the Pprime using pj's in order to compare with the target
   # Calculate correlation between Pprime and T in a segment.
-  ini<- which(T$x == xi)
-  fin <-which(T$x == xi1)
-  
-  # Transform P into Pw(Pprime)
-  
   # if Pw and T1 are the same length
-  a <- T1$f[ini:fin]
-  b <- Pw$f[ini:fin]
-  output <- cov(a,b)
+  if ( length(T1$x[xi:xi1]) == length( P$x[xi:xi1] ) )
+  {
+      b <- Pw$f[xi:xi1]
+  } else
+  {
+  
+      PPf <-Pprime(P,T1,xi,xi1)
+      b <- PPf$f
+  }
+    a <- T1$f[xi:xi1]
+    output <- cov(a,b)
+    return(output)
   
 }
 
