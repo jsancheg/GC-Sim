@@ -123,6 +123,9 @@ f <- function(P,T1,xi,xi1)
   # calculate the Pprime using pj's in order to compare with the target
   # Calculate correlation between Pprime and T in a segment.
   # if Pw and T1 are the same length
+  #ini<- which(T$x == xi)
+  #fin <-which(T$x == xi1)
+  
   if ( length(T1$x[xi:xi1]) == length( P$x[xi:xi1] ) )
   {
       b <- Pw$f[xi:xi1]
