@@ -93,8 +93,10 @@ plot(gc1$range(), B1, type = "l", col = "blue")
 lines(gc1$range(),T1, col = "green")
 
 
-Pprime <- function(P,T1,xi,xi1)
+Pprime <- function(P,T1,xsw,xew)
 {
+  xpi <- which()
+   
   nT <- length(T1$x[xi:xi1])
   pj <- rep(0,nT)
   pj[1] <- T1$x[xi]
@@ -108,13 +110,16 @@ Pprime <- function(P,T1,xi,xi1)
 }
 
 # benefit function 
-f <- function(P,T1,xi,xi1)
+f <- function(P,T1,xsw,xew)
 {
-  # xi : warping start position
-  # xi1 : warping end position
   # xsw : start warping point
   # xew : end warping point
-   
+  # xi : warping start position
+  # xi1 : warping end position
+  
+  xi <- which(P == xsw)
+  xi1 <- which(T1 == xew)
+  
   temp <- list()
   nTi <- length(T1$x[xi:xi1])
   PPf <- list(x = rep(0.0,nTi), f = rep(0.0,nTi) )
@@ -126,13 +131,13 @@ f <- function(P,T1,xi,xi1)
   #ini<- which(T$x == xi)
   #fin <-which(T$x == xi1)
   
-  if ( length(T1$x[xi:xi1]) == length( P$x[xi:xi1] ) )
+  if (all(T1$x[xi:xi1] == P$x[xi:xi1]) & length(T1$x[xi:xi1]) == length( P$x[xi:xi1] ) )
   {
       b <- Pw$f[xi:xi1]
   } else
   {
   
-      PPf <-Pprime(P,T1,xi,xi1)
+      PPf <-Pprime(P,T1,xsw,xse)
       b <- PPf$f
   }
     a <- T1$f[xi:xi1]
