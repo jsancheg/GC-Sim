@@ -12,6 +12,122 @@ rm(list = ls())
 # lowerlimit: A variable that set the minimum value for retention time.
 # upperlimit: A variable that set the maximum value for retention time.
 
+
+cow <- function(T,X,Seg,Slack, Options)
+{
+  # T (1xnT) target vector
+  # X (mP x nP) matrix with data for mP row vectors of length nP to be warped
+  # Seg (1x1) segment length; number of segments N= floor(nP/m)
+  #     or (2 x N+1) matrix with segment (pre-determined) boundary-points
+  # slack (1x1) 'slack' - maximum range or degree of warping in segment length "m"
+  # Options (1x5) 1: triggers plot and progress-text (note: only last row/object in
+  #                  "xP" is plotted)
+  #               2: correlation power (minimum 1th power, maximum is 4th power)
+  #               3: force equal segment lengths in "xt" and "xP" will generate
+  #                    on error)
+  #               4: fix maximum correction to + or - options(4) points from the
+  #                  diagonal
+  #               5: save in "diagnos" the table with the optimal values of loss
+  #                  function and procedure (memory consuming for large problems -
+  #                  on how to read tables are in the m-file)
+  #         default[0 1 0 0 0](no plot; power 1; no forced equal segment lengths;
+  #                 no band constraints; no Table in "diagnos")
+
+
+# Check input values ------------------------------------------------------
+nargin <- nargs()
+  
+
+
+
+# Initialise --------------------------------------------------------------
+nX = nrow(X) # number of signals to be aligned
+pX = ncol(X) # number of data points in each signal
+
+pT = length(T) # number of points in the target
+
+# Xwarped intialised matrix of warped signals
+Xwarped = matrix(0, nrow = nX, ncol = pT)
+Time = 1    #  Time : processing time
+
+
+# Initialise segments -----------------------------------------------------
+Seg = round(Seg)              # Only integers are currently allowed as segment boundaries
+Pred_Bound = lenght(Seg) > 1  # True if segment boundaries are predefined
+
+if (Pred_Bound)
+  {
+    if(!(setequal(Seg[,1],rep(1,2)) & setequal(Seg[,ncol(Seg)],c(pT,pX)) ) )
+        stop("End points must be equal to 1 and to the length of the pattern/target")
+  
+    LenSeg = t(apply(Seg,1,diff,1)) # LengSeg[1,] length of the segment in the - 1
+    if(!all(LenSeg>=2))
+      stop("Segments must contain at least two points")
+    
+    if(is.matrix(Seg)) nSeg = ncol(Seg) # number of segments
+    else nSeg = length(Seg)
+
+}else {
+  
+  if(Seg > min(pX,pT)) 
+    stop("Segment length is larger than length of the signal")    
+  
+  
+  if(Options[3])
+  {
+    nSeg =  floor( (pt-1) / Seg)
+    LenSeg[1,1:nSeg]= floor( (pT-1)/ Seg)
+    LenSeg[2,1:nSeg] = floor( (pX-1)/ Seg)
+    cat("\n Segment length adjusted to cover the remainders")
+  } else {
+    nSeg = floor( (pT-1)/ (Seg - 1))
+    LenSeg[1:2,1:nSeg] = Seg - 1
+    if(floor( (pX-1)/ (Seg - 1) )!= nSeg )
+      stop("For non-fixed segment lengths the target and the 
+           signal do not have the same number of segments (try Options(3))")
+  }
+  
+  temp = (pX-1) %% LenSeg[1,1] # The remainders are attached to the last segment
+                               # in the target and in the reference
+  
+  if(temp > 0)
+  {
+    LenSeg(1,Seg)= LenSeg(1,nSeg) + temp
+    if(Options[1])
+      cat("\n Segments: ",LengSeg[1,1]+1, " points x ", nSeg-1, " segments +",
+          LenSeg[1,ncol(LenSeg)] + 1)
+  } else {
+    
+    if (options[1])
+      cat("\n Segments: ",LengSeg[2,1]+1,"points x",nSeg, " segments (target)")
+    
+  }
+  temp = (pX-1) %% LenSeg[2,1]  
+  if(temp> 0)
+  {
+    LenSeg[2,nSeg] = LenSeg[2,nSeg] + temp ;
+    if (Options[1])
+      cat("\n",LenSeg[2,1]+1, " points x ",Seg - 1, " segments + ",
+          LenSeg[2,ncol(LenSeg)] + 1, " sigmals \n")
+  } else {
+    if (Options[1])
+      cat("\n ", LenSeg[2,1] + 1, " points x ",nSeg," segments (signals)\n")
+  }
+  
+}
+
+if( any(LenSeg <= Slack + 2)) # Two points are the minimum required for linear interpolation
+      stop("The slack cannot be longer than the lengthof the segments")
+  
+bt = cumsum()
+
+
+
+}
+
+
+
+
 gc <- setRefClass("gc",fields = list(peak = "numeric",
                                    variance = "numeric",
                                    intensity = "numeric",
@@ -95,17 +211,54 @@ lines(gc1$range(),T1, col = "green")
 
 Pprime <- function(P,T1,xsw,xew)
 {
-  xpi <- which()
-   
+  output<-list()
+  
+  if(length(which(P$x == xsw)) > 0 )
+      xi <-which(P$x == xsw)
+  else if(length(which(P$x < xsw) > 0) )
+      xpi<- which(P$x < xsw)
+  else if(length(which(P$x > xsw) > 0 ))
+      xpi<-which(P$x > xsw)
+  
+  if(length(which(P$x == xew)) > 0 )
+      xi1<- which(P$x == xew)
+  else if(length(which(P$x < xew)) > 0)
+      xpi1<-which(P$x < xew)
+  else if(length(which(P$x > xew)) > 0 )
+      xpi1<-which(P$x > xew) 
+    
   nT <- length(T1$x[xi:xi1])
-  pj <- rep(0,nT)
-  pj[1] <- T1$x[xi]
-  
-  
+
+ 
+  pj <- rep(o,nT)
+  pj[1] <- P$x[xpi]
+  pj[nT] <- P$x[xpi1]
+
   fpj<- rep(0,nT)
+  fpj[1] <- P$f[xpi]
+  fpj[nT] <- P$f[xpi1]
   
   
   
+  for (j in 2:(nT-1))
+    pj[j] <-P$x[xpi] + j * (P5x[xpi1] - P$x[xpi])/(xew - xsw)
+
+  for (j in 2:(nT-1))
+  {
+      lb = which(P$x < pj[j])
+      ub = which(P$x > pj[j])
+      xs = P$x[lb]
+      xe = P$x[ub]
+      fxs = P$f[lb]
+      fxe = P$f[ub]
+      m = (fxe-fxs)/(xe-xs)
+      c = fxe-m*xe      
+      fpj[j] = m*pj[j] + c
+      
+  }
+  
+  output <- list(x = pj, f = fpj)
+  return(output)
   
 }
 
@@ -117,8 +270,8 @@ f <- function(P,T1,xsw,xew)
   # xi : warping start position
   # xi1 : warping end position
   
-  xi <- which(P == xsw)
-  xi1 <- which(T1 == xew)
+  xi <- which(P$x == xsw)
+  xi1 <- which(T1$x == xew)
   
   temp <- list()
   nTi <- length(T1$x[xi:xi1])
@@ -133,7 +286,7 @@ f <- function(P,T1,xsw,xew)
   
   if (all(T1$x[xi:xi1] == P$x[xi:xi1]) & length(T1$x[xi:xi1]) == length( P$x[xi:xi1] ) )
   {
-      b <- Pw$f[xi:xi1]
+      b <- P$f[xi:xi1]
   } else
   {
   
@@ -155,6 +308,7 @@ align <- function(P,Target,m,t)
   # F1: matrix containing the cumulated benefit function
   
   # Pre-aligming length of chromatogram
+  # Intervals of 1 unit in P
   Lp<- max(P$x)-min(P$x)
   
   # Post-aligning length of chromatogram and length of 
@@ -184,16 +338,19 @@ align <- function(P,Target,m,t)
   {
     xstart <- max(i*(m+d-t),Lt-(N-i)*(m+d+t))
     xend <- min(i*(m+d + t),Lt-(N-i)*(m+d-t))
-    for (x in xstart:xend)
-    {
-      for (u in (d-t):(d+t))
-      {
-        fsum <- F1[i+1,x+m+u] + f(x,x+m+u)
-        if (fsum > F1[i,x]) then
-        F1[i,x] <- fsum
-        U[i,x] <- u
-      }
-    }
+    cat("\n \\(", xstart, "-" ,xend, "\\) \n")
+#    for (x in xstart:xend)
+#    {
+#      for (u in (d-t):(d+t))
+#      {
+#        if(F1[i+1,x+m+u] == -Inf)
+#            fsum <- f(x,x+m+u)
+#        else  fsum <- F1[i+1,x+m+u] + f(x,x+m+u)
+#        if (fsum > F1[i,x]) then
+#        F1[i,x] <- fsum
+#        U[i,x] <- u
+#      }
+#    }
   }
   
   x(0) = 0
