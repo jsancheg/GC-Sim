@@ -10,3 +10,6 @@ Slack = 1
 Options = c(0,1,1,0,0)
 
 cow(T,X,Seg,Slack,Options)
+
+
+

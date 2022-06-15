@@ -86,7 +86,7 @@ if(is.matrix(X))
 pT = length(T) # number of points in the target
 
 # Xwarped intialised matrix of warped signals
-Xwarped = matrix(0, nrow = nX, ncol = pT)
+XWarped = matrix(0, nrow = nX, ncol = pT)
 Time = 1    #  Time : processing time
 
 
@@ -160,7 +160,7 @@ if( any(LenSeg <= Slack + 2)) # Two points are the minimum required for linear i
   
 bT = cumsum(c(1,LenSeg[1,]))
 bP = cumsum(c(1,LenSeg[2,]))
-Warping = matrix(0, nrow = nX,ncol = nSeg + 1)
+Warping = array(0, dim = c(nX,nSeg+1,2) )
 
 # Check Slack
 
@@ -361,29 +361,36 @@ for (i_sam in 1:nX)
   # Backward phase
   # Backtrace optimal boundaries using pointers in Table
   Pointer = ncol(Table)
-  Warping[i_sam, (nSeg+1)] = pX
+  Warping[i_sam, (nSeg+1),1] = pX
   for(i_bound in nSeg:1)
   {
     Pointer = Table[3,Pointer,i_sam]
-    Warping[i_sam,i_bound] = Table[1,Pointer,i_sam]
+    Warping[i_sam,i_bound,1] = Table[1,Pointer,i_sam]
   }
 }
+    Warping[,,2] <- bT 
 
 # Reconstruct aligned signals
 for (i_seg in 1:nSeg)
 {
   indT = bT[i_seg]:bT[i_seg + 1]
-  indT = bT(i_seg + 1)-bT(i_seg)
+  lenT = bT[i_seg + 1]-bT[i_seg]
   for (i_sam in 1:nX)
   {
-    indX = Warping[i_sam,i_seg]:Warping[i_sam,i_Seg+1]
-    ienX = Warping[i_sam,i_seg + 1]-Warping[i_sam.i_seg]
-#    Xwarped[i_sam, indT] = approx(t(indX) - Warping[i_sam,i_seg]+1, 
-#                                  t(X[i_sam,indX])) 
+    indX = Warping[i_sam,i_seg,1]:Warping[i_sam,(i_seg+1),1]
+    lenX = Warping[i_sam,(i_seg + 1),1] - Warping[i_sam,i_seg,1]
+    if(is.matrix(X))
+      XWarped[i_sam, indT] = approx(t(indX) - Warping[i_sam,i_seg,1]+1, 
+                                    t(X[i_sam,indX]))$y 
+    if(is.vector(X))
+      XWarped[i_sam, indT] = approx(indX - Warping[i_sam,i_seg,1]+1, 
+                                    t(X[indX]),(0:lenT)/lenT*lenX+1)$y 
+    
+      
   }
 }
 
- return(list(Warping = Warping)) 
+ return(list(Warping = Warping, XWarped = XWarped)) 
 }  
   
 
@@ -548,101 +555,103 @@ Pprime <- function(P,T1,xsw,xew)
 
 
 # benefit function 
-f <- function(P,T1,xsw,xew)
+f <- function(xs,Seg,u,Slack,ts,te,X,T)
 {
-  # xsw : start warping point
-  # xew : end warping point
-  # xi : warping start position
-  # xi1 : warping end position
+  # xs : start warped position of segment on X 
+  # xs + Seg + u : end warped position of segment on X
+  # ts : start position of segment on T
+  # te : end position of segment on T
   
-  xi <- which(P$x == xsw)
-  xi1 <- which(T1$x == xew)
+  xe = xs + Seg + u
+  bounds <- seq(xs,xe,length.out = length(ts:te))
+  aux <- approx(xs:xe,X[xs:xe],bounds)
   
-  temp <- list()
-  nTi <- length(T1$x[xi:xi1])
-  PPf <- list(x = rep(0.0,nTi), f = rep(0.0,nTi) )
-  
-  # Use the warping points to find the unwarped points and obtain pj's
-  # calculate the Pprime using pj's in order to compare with the target
-  # Calculate correlation between Pprime and T in a segment.
-  # if Pw and T1 are the same length
-  #ini<- which(T$x == xi)
-  #fin <-which(T$x == xi1)
-  
-  if (all(T1$x[xi:xi1] == P$x[xi:xi1]) & length(T1$x[xi:xi1]) == length( P$x[xi:xi1] ) )
+  if (length(T[ts:te]) == length( X[xs:xe]) )
   {
-      b <- P$f[xi:xi1]
+      b <- X[xs:xe]
   } else
   {
-  
-      PPf <-Pprime(P,T1,xsw,xse)
-      b <- PPf$f
+      b <- aux$y
   }
-    a <- T1$f[xi:xi1]
-    output <- cov(a,b)
+    a <- T[ts:te]
+    output <- cor(a,b)
     return(output)
   
 }
 
-align <- function(P,Target,m,t)
+align <- function(T,X,Seg,Slack)
 {
-  # P:  class GC signal that contains the retention time and intensity
-  # Target: class Gc signal that contains the target retention and intensity
-  # m:      Number of segments
-  # t:       
+  # X:  query signal
+  # T: target signal
+  # Seg: Segment length
+  # Slack: minimum warping       
   # F1: matrix containing the cumulated benefit function
   
   # Pre-aligming length of chromatogram
   # Intervals of 1 unit in P
-  Lp<- max(P$x)-min(P$x)
+  Lx<- length(X) - 1
   
   # Post-aligning length of chromatogram and length of 
   # target chromatogram
-  Lt <- max(Target$x)-min(Target$x)
+  Lt <- length(T) - 1
   
   # Calculate number of sections for P
-  N <- floor(Lp/m)
+  N <- floor(Lx/Seg)
+  Ix <- seq(1,Lx+1,Seg)
   
   # calculate difference in mean section length between P and T
-  d <- floor(Lt/N) - m
+  d <- floor(Lt/N) - Seg
   
   F1 <- matrix(0.0, nrow = (N+1), ncol = (Lt+1))
   U <- matrix(0.0, nrow = (N+1), ncol = (Lt+1))
   
-  for (i in 0:N)
+  for (i in 1:(N+1))
   {
-    for(x in 0:Lt)
+    for(x in 1:(Lt+1))
     {
       F1[i,x] <- -Inf  
     }
   }
   
-  F1[N,0] = 0
+  F1[N+1,] = 0
   
-  for (i in (N-1): 0)
+  
+  for (i in (N-1):0)
   {
-    xstart <- max(i*(m+d-t),Lt-(N-i)*(m+d+t))
-    xend <- min(i*(m+d + t),Lt-(N-i)*(m+d-t))
+    xstart <- max(1+i*(Seg+d-Slack),(Lt+1)-(N-i)*(Seg+d+Slack))
+    xend <- min(1+i*(Seg+d + Slack),(Lt+1)-(N-i)*(Seg+d-Slack))
     cat("\n \\(", xstart, "-" ,xend, "\\) \n")
-#    for (x in xstart:xend)
-#    {
-#      for (u in (d-t):(d+t))
-#      {
-#        if(F1[i+1,x+m+u] == -Inf)
-#            fsum <- f(x,x+m+u)
-#        else  fsum <- F1[i+1,x+m+u] + f(x,x+m+u)
-#        if (fsum > F1[i,x]) then
-#        F1[i,x] <- fsum
-#        U[i,x] <- u
-#      }
-#    }
+    for (x in xstart:xend)
+    {
+      for (u in (d-Slack):(d+Slack))
+      {
+        if(x+Seg+u <= Lt+1 )
+        {
+              fsum <- F1[i+2,x+Seg+u] + f(x,Seg,u,Slack,Ix[i+1],Ix[i+2],X,T)
+                  cat("\n",fsum,"\n")
+                if (fsum > F1[i+1,x])
+                {
+                  F1[i+1,x] <- fsum
+                  U[i+1,x] <- u
+                }# End-if
+
+          }# End-if
+        
+        }# End for u
+    }# End for x
   }
   
-  x(0) = 0
-  for(i in 0:N-1)
+  F1
+  U
+  Xw <- rep(0,N+1)
+  u <- rep(0,N+1)
+  Xw[1]<-1
+  Xw[N+1]<-length(X)
+  
+  for(i in 1:N-1)
   {
-    u[i] <- U[i,x[i]]
-    x[i+1] <- x[i]+m+u(i)
+    u[i] <- U[i,Xw[i]]
+    Xw[i+1] <- Xw[i]+Seg+u[i]
   }
   return(x = x, u=u,F1=F1,U=U)
 }
