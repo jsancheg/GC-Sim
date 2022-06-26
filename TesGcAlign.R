@@ -9,6 +9,8 @@ Seg = 5
 Slack = 1
 Options = c(0,1,1,0,0)
 
+align(T1,X1,Seg,Slack)
+
 cow(T,X,Seg,Slack,Options)
 
 

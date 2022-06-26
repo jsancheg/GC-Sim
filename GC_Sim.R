@@ -131,7 +131,7 @@ if (Pred_Bound)
   
   if(temp > 0)
   {
-    LenSeg(1,Seg)= LenSeg(1,nSeg) + temp
+    LenSeg[1,Seg]= LenSeg[1,nSeg] + temp
     if(Options[1])
       cat("\n Segments: ",LengSeg[1,1]+1, " points x ", nSeg-1, " segments +",
           LenSeg[1,ncol(LenSeg)] + 1)
@@ -574,7 +574,11 @@ f <- function(xs,Seg,u,Slack,ts,te,X,T)
       b <- aux$y
   }
     a <- T[ts:te]
-    output <- cor(a,b)
+    if ( all( c(var(a),var(b)) !=0 ) )
+          correlation <- cor(a,b)
+    else  correlation <- 0
+    
+    output <- list( corr = correlation, unwarped = a, warped = b)      
     return(output)
   
 }
@@ -589,15 +593,24 @@ align <- function(T,X,Seg,Slack)
   
   # Pre-aligming length of chromatogram
   # Intervals of 1 unit in P
-  Lx<- length(X) - 1
+  Lx <- length(X) - 1
   
   # Post-aligning length of chromatogram and length of 
   # target chromatogram
   Lt <- length(T) - 1
   
-  # Calculate number of sections for P
+  # Calculate number of sections for X the query signal
   N <- floor(Lx/Seg)
+  
+  # Ix sequence of node positions in X (query signal) before warping
   Ix <- seq(1,Lx+1,Seg)
+  
+  # temp = (pX-1) %% LenSeg[1,1]
+  # remainder of the segments and signals can have different lengths  
+  temp = Lx %% Seg
+  
+  Nnodes <- length(Ix)
+  if(temp > 0) Ix[Nnodes] <- Ix[Nnodes]+temp
   
   # calculate difference in mean section length between P and T
   d <- floor(Lt/N) - Seg
@@ -615,43 +628,67 @@ align <- function(T,X,Seg,Slack)
   
   F1[N+1,] = 0
   
-  
+  # W is the list that contain the warping signal for warping nodes
+  aux1W <- list()
+
   for (i in (N-1):0)
   {
+    #xstart: minimum start point of segment i in query signal
+    #xend: maximum end point of segment i in query signal
     xstart <- max(1+i*(Seg+d-Slack),(Lt+1)-(N-i)*(Seg+d+Slack))
     xend <- min(1+i*(Seg+d + Slack),(Lt+1)-(N-i)*(Seg+d-Slack))
-    cat("\n \\(", xstart, "-" ,xend, "\\) \n")
+    cat("\n i=",i,"\\(", xstart, "-" ,xend, "\\) \n")
     for (x in xstart:xend)
     {
       for (u in (d-Slack):(d+Slack))
       {
         if(x+Seg+u <= Lt+1 )
         {
-              fsum <- F1[i+2,x+Seg+u] + f(x,Seg,u,Slack,Ix[i+1],Ix[i+2],X,T)
-                  cat("\n",fsum,"\n")
-                if (fsum > F1[i+1,x])
-                {
-                  F1[i+1,x] <- fsum
-                  U[i+1,x] <- u
-                }# End-if
-
+          
+          temp1 <- f(x,Seg,u,Slack,Ix[i+1],Ix[i+2],X,T)
+          corr <- temp1$corr
+          
+       #   fsum <- F1[i+2,x+Seg+u] + f(x,Seg,u,Slack,Ix[i+1],Ix[i+2],X,T)
+          fsum <- F1[i+2,x+Seg+u] + corr
+          
+          cat("\nnode=",i,",x =",x,",u=",u,",fsum=",fsum,"\n")
+          if (fsum > F1[i+1,x])
+          {
+            F1[i+1,x] <- fsum
+            U[i+1,x] <- u
+            aux1W[[i+1]] <- temp1$w
           }# End-if
+          
+        }# End-if
         
-        }# End for u
+      }# End for u
     }# End for x
-  }
+  } # End for i
   
   F1
   U
   Xw <- rep(0,N+1)
   u <- rep(0,N+1)
+  aux2W <- list()
   Xw[1]<-1
   Xw[N+1]<-length(X)
   
-  for(i in 1:N-1)
+  for(i in 1:(N-1) )
   {
     u[i] <- U[i,Xw[i]]
     Xw[i+1] <- Xw[i]+Seg+u[i]
   }
-  return(x = x, u=u,F1=F1,U=U)
+  for(i in 1:length(aux1W))
+  {
+    nelements <- length(aux1W[[i]])
+    if(i<length(aux1W))
+    {
+      aux2W[[i]] <- aux1W[[i]][1:(nelements-1)]
+    } else  
+      {
+        aux2W[[i]] <- aux1W[[i]][1:(nelements)]
+      }
+  }
+    W <- unlist(aux2W)
+  return(list(X=Ix,Xw = Xw, u=u,F1=F1,U=U,W = W))
 }
