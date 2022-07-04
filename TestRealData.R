@@ -9,6 +9,17 @@ dim(Data[1,1:2900,])
 plot(Data[1,,100],type = "l")
 plot(Data[2,,100],type = "l")
 
+# set 1st signal GC-MS as a target
+T <- Data[1,,]
+# set 2nd signal GC-MS as a query
+X <- Data[2,,]
+
+Seg <- 15
+Slack <- 5
+
+tic("alignGCMS")
+Xaligned <- alignGCMS(T,X,Seg,Slack)
+toc()
 
 T<-Data[1,,100]
 X<-Data[2,,100]
@@ -45,7 +56,6 @@ WX2 <- align(T,X1,10,5)
 WX3 <- align(T,X2,10,5)
 WX4 <- align(T,X3,10,5)
 
-WX1$X
 
 all(WX1$Xw==WX2$Xw)
 all(WX1$Xw==WX3$Xw)
