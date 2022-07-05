@@ -14,19 +14,34 @@ Options = c(0,1,1,0,0)
 
 # align signal X1
 align(T1,X1,Seg,Slack)
-alignGCMS(T1,X1,Seg,Slack)
+WX1 <- alignGCMS(T1,X1,Seg,Slack)
 
 # align signal X2
 align(T1,X2,Seg,Slack)
-alignGCMS(T1,X2,Seg,Slack)
+WX2 <- alignGCMS(T1,X2,Seg,Slack)
 
 MX <- cbind(X1,X2)
 MT <- cbind(T1,T1)
 
-alignGCMS(MT,MX,Seg,Slack)
+
+# align signal with cow
+tic("align")
+cow(T1,X2,Seg,Slack)
+toc()
 
 
+# align signal X2
+tic("align")
+align(T1,X2,Seg,Slack)
+toc()
 
+tic("AlignGCMS")
+WMX <- alignGCMS(MT,MX,Seg,Slack)
+toc()
+
+tic("alignGCMS_Parallel")
+WMXPar <- alignGCMS_Parallel(MT,MX,Seg,Slack)
+toc()
 
 # align signal X1 and X2
 
